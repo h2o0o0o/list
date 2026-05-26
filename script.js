@@ -1,19 +1,198 @@
+function readTheme() {
+  try {
+    return localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
+}
+
+function currentTheme() {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme, persist = true) {
+  document.documentElement.dataset.theme = theme;
+  if (!persist) return;
+  try {
+    localStorage.setItem('theme', theme);
+  } catch {}
+}
+
+applyTheme(readTheme(), false);
+
+const languageLabels = {
+  listTitle:{ru:'ГАДЫ',en:'SCUM'},
+  topTitle:{ru:'ТОП',en:'TOP'},
+  listDocumentTitle:{ru:'СПИСОК',en:'LIST'},
+  topDocumentTitle:{ru:'ТОП ГНИД',en:'SCUM TOP'},
+  topLink:{ru:'ТОП',en:'TOP'},
+  backLink:{ru:'СПИСОК',en:'LIST'},
+  topNote:{ru:'Здесь не мера зла, только мера того, как сильно каждый меня бесит',en:'Not a measure of evil, only of how much each person gets on my nerves'},
+  showStars:{ru:'Показать звёздочки рядом с именами',en:'Show stars next to names'},
+  hideStars:{ru:'Скрыть звёздочки рядом с именами',en:'Hide stars next to names'},
+  sortStarsAsc:{ru:'Сортировать по звёздам: от меньшего к большему',en:'Sort by stars: low to high'},
+  sortStarsDesc:{ru:'Сортировать по звёздам: от большего к меньшему',en:'Sort by stars: high to low'},
+  lightTheme:{ru:'Включить светлую тему',en:'Switch to light theme'},
+  darkTheme:{ru:'Включить тёмную тему',en:'Switch to dark theme'},
+  topSort:{ru:'Изменить порядок топа',en:'Reverse top order'},
+  languageToEnglish:{ru:'Перевести на английский',en:'Translate to English'},
+  languageToRussian:{ru:'Вернуть русский язык',en:'Switch back to Russian'},
+  translationError:{ru:'Перевод временно недоступен',en:'Translation is temporarily unavailable'},
+  irritation:{ru:'Насколько меня бесит',en:'How much this person annoys me'}
+};
+
+function readLanguage() {
+  try {
+    return localStorage.getItem('language') === 'en' ? 'en' : 'ru';
+  } catch {
+    return 'ru';
+  }
+}
+
+function readTranslationCache() {
+  try {
+    return JSON.parse(localStorage.getItem('translation-cache-ru-en') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+let language = readLanguage();
+let englishReady = false;
+let translationRequest;
+const translationCache = readTranslationCache();
+
+function textLabel(key) {
+  return languageLabels[key][language];
+}
+
+function countLabel(count) {
+  return language === 'en' ? `${count} ENTRIES` : `${count} гнид`;
+}
+
+function saveLanguage() {
+  try {
+    localStorage.setItem('language', language);
+  } catch {}
+}
+
+function saveTranslationCache() {
+  try {
+    localStorage.setItem('translation-cache-ru-en', JSON.stringify(translationCache));
+  } catch {}
+}
+
+function translatedText(text) {
+  if (language !== 'en' || !englishReady) return text;
+  return translationCache[text] || text;
+}
+
+function escapeHtml(text) {
+  return String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function splitTranslationText(text) {
+  const parts = text.split(/\s+/);
+  const chunks = [];
+  let current = '';
+  parts.forEach(part => {
+    const candidate = current ? `${current} ${part}` : part;
+    if (new TextEncoder().encode(candidate).length <= 450) {
+      current = candidate;
+      return;
+    }
+    if (current) chunks.push(current);
+    current = part;
+  });
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+function decodeTranslation(text) {
+  const area = document.createElement('textarea');
+  area.innerHTML = text;
+  return area.value;
+}
+
+async function fetchTranslation(text) {
+  const chunks = splitTranslationText(text);
+  const translated = [];
+  for (const chunk of chunks) {
+    const query = new URLSearchParams({q:chunk,langpair:'ru|en',mt:'1'});
+    const response = await fetch(`https://api.mymemory.translated.net/get?${query}`);
+    if (!response.ok) throw new Error('translation');
+    const data = await response.json();
+    if (!data.responseData || typeof data.responseData.translatedText !== 'string') throw new Error('translation');
+    translated.push(decodeTranslation(data.responseData.translatedText));
+  }
+  return translated.join(' ');
+}
+
+async function ensureEnglishTranslations() {
+  if (translationRequest) return translationRequest;
+  const sources = [...new Set(people.flatMap(person => [person.name, person.reason]))];
+  const pending = sources.filter(text => !translationCache[text]);
+  translationRequest = (async () => {
+    let cursor = 0;
+    let completed = sources.length - pending.length;
+    async function worker() {
+      while (cursor < pending.length) {
+        const text = pending[cursor++];
+        try {
+          translationCache[text] = await fetchTranslation(text);
+          completed++;
+          saveTranslationCache();
+        } catch {}
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(3, pending.length)}, () => worker()));
+    if (completed !== sources.length) throw new Error('translation');
+    englishReady = true;
+  })().finally(() => {
+    translationRequest = null;
+  });
+  return translationRequest;
+}
+
 function plainText(text) {
   return text.split('').map(ch => {
     if (ch === ' ') return '<span class="entry-space"></span>';
     const rot = (Math.random() - 0.5) * 14;
     const tx = (Math.random() - 0.5) * 5;
     const ty = (Math.random() - 0.5) * 8;
-    return `<span class="wobbly-letter" style="transform:rotate(${rot}deg) translate(${tx}px,${ty}px)">${ch}</span>`;
+    return `<span class="wobbly-letter" style="transform:rotate(${rot}deg) translate(${tx}px,${ty}px)">${escapeHtml(ch)}</span>`;
   }).join('');
 }
 
 function levelColor(level) {
+  if (currentTheme() === 'dark') {
+    const strength = level / 5;
+    return `rgb(${Math.round(170 + 60 * strength)}, ${Math.round(84 - 38 * strength)}, ${Math.round(77 - 34 * strength)})`;
+  }
   return `rgb(${Math.round((level / 5) * 255)}, 0, 0)`;
+}
+
+function hateColor(hate) {
+  if (currentTheme() === 'dark') {
+    if (hate >= 90) return '#f05b52';
+    if (hate >= 70) return '#de6b62';
+    if (hate >= 45) return '#cb7d75';
+    return '#bd8b85';
+  }
+  if (hate >= 90) return '#b71c1c';
+  if (hate >= 70) return '#8b1a1a';
+  if (hate >= 45) return '#a24740';
+  return '#a56c67';
 }
 
 function scoreSegmentColor(value) {
   const strength = value / 100;
+  if (currentTheme() === 'dark') {
+    const red = Math.round(188 + 48 * strength);
+    const green = Math.round(113 - 60 * strength);
+    const blue = Math.round(105 - 55 * strength);
+    return `rgb(${red}, ${green}, ${blue})`;
+  }
   const red = Math.round(150 + 33 * strength);
   const green = Math.round(120 - 92 * strength);
   const blue = Math.round(114 - 86 * strength);
@@ -38,11 +217,34 @@ function renderStars(level) {
 
 function renderBar(hate) {
   const filled = Math.round(hate / 5);
+  const col = hateColor(hate);
   return `<div class="hate-bar" aria-hidden="true">${
     Array.from({length:20}, (_,i) =>
       `<span class="hb${i < filled ? ' on' : ''}" style="${i < filled ? `--score-color:${scoreSegmentColor((i + 1) * 5)};--score-opacity:${scoreSegmentOpacity((i + 1) * 5)}` : ''}">/</span>`
     ).join('')
-  }</div><div class="hate-num" aria-label="Насколько меня бесит: ${hate} из 100">${hate}<span class="hate-denom">/100</span></div>`;
+  }</div><div class="hate-num" style="color:${col}" aria-label="${textLabel('irritation')}: ${hate} / 100">${hate}<span class="hate-denom">/100</span></div>`;
+}
+
+function refreshThemeColors() {
+  document.querySelectorAll('.entry').forEach(el => {
+    const level = Number(el.dataset.level);
+    if (!Number.isNaN(level)) {
+      const color = levelColor(level);
+      el.querySelector('.entry-level-mark')?.style.setProperty('color', color);
+      el.querySelectorAll('.star.on').forEach(star => star.style.color = color);
+      el.querySelector('.star.half')?.style.setProperty('--star-color', color);
+    }
+
+    const hate = Number(el.dataset.hate);
+    if (!Number.isNaN(hate)) {
+      const color = hateColor(hate);
+      el.querySelector('.top-rank')?.style.setProperty('color', color);
+      el.querySelector('.hate-num')?.style.setProperty('color', color);
+      el.querySelectorAll('.hb.on').forEach((segment, i) => {
+        segment.style.setProperty('--score-color', scoreSegmentColor((i + 1) * 5));
+      });
+    }
+  });
 }
 
 function animateEntryIn(el, i) {
@@ -226,10 +428,10 @@ function createEntryMain(p, i, showLevelMark) {
   const mark = showLevelMark ? `<span class="entry-level-mark" style="color:${levelColor(p.level)}">★</span>` : '';
 
   el.innerHTML = `
-    <div class="entry-name">${plainText(p.name)}${mark}</div>
+    <div class="entry-name">${plainText(translatedText(p.name))}${mark}</div>
     <div class="entry-detail">
       <div class="entry-stars">${renderStars(p.level)}</div>
-      <div class="entry-reason">${p.reason}</div>
+      <div class="entry-reason">${escapeHtml(translatedText(p.reason))}</div>
     </div>`;
 
   el.querySelector('.entry-name').addEventListener('click', () => {
@@ -272,14 +474,15 @@ function createEntryTop(p, i, rank) {
   el.className = 'entry top-entry';
   el.dataset.hate = p.hate;
   animateEntryIn(el, i);
+  const col = hateColor(p.hate);
   el.innerHTML = `
     <div class="top-meta">
-      <span class="top-rank">${String(rank).padStart(2,'0')}</span>
-      <div class="entry-name">${plainText(p.name)}</div>
+      <span class="top-rank" style="color:${col}">${String(rank).padStart(2,'0')}</span>
+      <div class="entry-name">${plainText(translatedText(p.name))}</div>
     </div>
     <div class="top-bar-row">${renderBar(p.hate)}</div>
     <div class="entry-detail">
-      <div class="entry-reason">${p.reason}</div>
+      <div class="entry-reason">${escapeHtml(translatedText(p.reason))}</div>
     </div>`;
 
   el.querySelector('.entry-name').addEventListener('click', () => {
@@ -290,9 +493,78 @@ function createEntryTop(p, i, rank) {
   return el;
 }
 
+function updateMainEntryText(el, person) {
+  clearStarTransfer(el);
+  const name = el.querySelector('.entry-name');
+  const mark = name.querySelector('.entry-level-mark');
+  name.innerHTML = plainText(translatedText(person.name));
+  if (mark) name.appendChild(mark);
+  el.querySelector('.entry-reason').textContent = translatedText(person.reason);
+}
+
+function updateTopEntryText(el, person) {
+  el.querySelector('.entry-name').innerHTML = plainText(translatedText(person.name));
+  el.querySelector('.entry-reason').textContent = translatedText(person.reason);
+  el.querySelector('.hate-num').setAttribute('aria-label', `${textLabel('irritation')}: ${person.hate} / 100`);
+}
+
+function mountLanguageButton(bar, refresh) {
+  const button = document.createElement('button');
+  button.className = 'language-btn';
+
+  function sync(busy = false) {
+    button.textContent = busy ? '...' : language === 'en' ? 'RU' : 'ENG';
+    button.classList.toggle('active', language === 'en');
+    button.title = language === 'en' ? textLabel('languageToRussian') : textLabel('languageToEnglish');
+    button.setAttribute('aria-label', button.title);
+  }
+
+  async function loadEnglish() {
+    button.disabled = true;
+    sync(true);
+    let failed = false;
+    try {
+      await ensureEnglishTranslations();
+      refresh();
+    } catch {
+      failed = true;
+      language = 'ru';
+      saveLanguage();
+      refresh();
+    } finally {
+      button.disabled = false;
+      sync();
+      if (failed) {
+        button.title = textLabel('translationError');
+        button.setAttribute('aria-label', button.title);
+      }
+    }
+  }
+
+  button.addEventListener('click', async () => {
+    if (language === 'en') {
+      language = 'ru';
+      saveLanguage();
+      refresh();
+      sync();
+      return;
+    }
+    language = 'en';
+    saveLanguage();
+    refresh();
+    await loadEnglish();
+  });
+
+  bar.appendChild(button);
+  refresh();
+  sync(language === 'en' && !englishReady);
+  if (language === 'en') loadEnglish();
+  return button;
+}
+
 const listEl = document.getElementById('list');
 if (listEl) {
-  document.getElementById('countline').textContent = people.length + ' гнид';
+  document.getElementById('countline').textContent = countLabel(people.length);
 
   function shuffle(a) {
     const r = [...a];
@@ -316,10 +588,10 @@ if (listEl) {
     if      (mode==='random')    sorted = shuffle(people);
     else if (mode==='level')     sorted = [...people].sort((a,b)=>a.level-b.level);
     else if (mode==='level-rev') sorted = [...people].sort((a,b)=>b.level-a.level);
-    else if (mode==='alpha')     sorted = [...people].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
-    else if (mode==='alpha-rev') sorted = [...people].sort((a,b)=>b.name.localeCompare(a.name,'ru'));
-    else if (mode==='len')       sorted = [...people].sort((a,b)=>a.name.length-b.name.length);
-    else if (mode==='len-asc')   sorted = [...people].sort((a,b)=>b.name.length-a.name.length);
+    else if (mode==='alpha')     sorted = [...people].sort((a,b)=>translatedText(a.name).localeCompare(translatedText(b.name),language));
+    else if (mode==='alpha-rev') sorted = [...people].sort((a,b)=>translatedText(b.name).localeCompare(translatedText(a.name),language));
+    else if (mode==='len')       sorted = [...people].sort((a,b)=>translatedText(a.name).length-translatedText(b.name).length);
+    else if (mode==='len-asc')   sorted = [...people].sort((a,b)=>translatedText(b.name).length-translatedText(a.name).length);
     const ordered = sorted.map(p => entries.get(p));
     ordered.forEach(clearStarTransfer);
     if (!listEl.childElementCount) ordered.forEach((el,i) => el.style.animationDelay = `${i * 0.035}s`);
@@ -352,13 +624,14 @@ if (listEl) {
   btnStars.className='sort-btn';
   btnStars.dataset.sort='level';
   btnStars.textContent='★↑';
-  btnStars.title='Сортировать по звёздам';
-  btnStars.setAttribute('aria-label', 'Сортировать по звёздам: от меньшего к большему');
+  btnStars.title=textLabel('sortStarsAsc');
+  btnStars.setAttribute('aria-label', textLabel('sortStarsAsc'));
   btnStars.addEventListener('click',()=>{
     const next = currentSort === 'level' ? 'level-rev' : 'level';
     btnStars.dataset.sort = next;
     btnStars.textContent = next === 'level' ? '★↑' : '★↓';
-    btnStars.setAttribute('aria-label', next === 'level' ? 'Сортировать по звёздам: от меньшего к большему' : 'Сортировать по звёздам: от большего к меньшему');
+    btnStars.title = next === 'level' ? textLabel('sortStarsAsc') : textLabel('sortStarsDesc');
+    btnStars.setAttribute('aria-label', btnStars.title);
     applySort(next);
   });
   bar.appendChild(btnStars);
@@ -366,13 +639,13 @@ if (listEl) {
   const btnColor = document.createElement('button');
   btnColor.className='display-btn active';
   btnColor.textContent='★';
-  btnColor.title='Скрыть звёздочки рядом с именами';
-  btnColor.setAttribute('aria-label', 'Скрыть звёздочки рядом с именами');
+  btnColor.title=textLabel('hideStars');
+  btnColor.setAttribute('aria-label', textLabel('hideStars'));
   btnColor.addEventListener('click',()=>{
     showLevelMarks = !showLevelMarks;
     btnColor.classList.toggle('active', showLevelMarks);
     btnColor.textContent = showLevelMarks ? '★' : '☆';
-    btnColor.title = showLevelMarks ? 'Скрыть звёздочки рядом с именами' : 'Показать звёздочки рядом с именами';
+    btnColor.title = showLevelMarks ? textLabel('hideStars') : textLabel('showStars');
     btnColor.setAttribute('aria-label', btnColor.title);
     toggleLevelMarks();
   });
@@ -399,18 +672,59 @@ if (listEl) {
     applySort(next);
   });
   bar.appendChild(btnLen);
-  
+
+  const btnTheme = document.createElement('button');
+  btnTheme.className='theme-btn';
+  const syncThemeButton = () => {
+    const dark = currentTheme() === 'dark';
+    btnTheme.textContent = dark ? '☀' : '☾';
+    btnTheme.title = dark ? textLabel('lightTheme') : textLabel('darkTheme');
+    btnTheme.setAttribute('aria-label', btnTheme.title);
+  };
+  syncThemeButton();
+  btnTheme.addEventListener('click',()=>{
+    document.querySelectorAll('.entry').forEach(clearStarTransfer);
+    applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    refreshThemeColors();
+    syncThemeButton();
+  });
+  bar.appendChild(btnTheme);
+
+  function refreshListLanguage() {
+    document.documentElement.lang = language;
+    document.title = textLabel('listDocumentTitle');
+    document.querySelector('.nav-link-top').textContent = textLabel('topLink');
+    document.getElementById('shuffle-title').textContent = textLabel('listTitle');
+    document.getElementById('countline').textContent = countLabel(people.length);
+    btnStars.title = currentSort === 'level-rev' ? textLabel('sortStarsDesc') : textLabel('sortStarsAsc');
+    btnStars.setAttribute('aria-label', btnStars.title);
+    btnColor.title = showLevelMarks ? textLabel('hideStars') : textLabel('showStars');
+    btnColor.setAttribute('aria-label', btnColor.title);
+    syncThemeButton();
+    const visible = [...listEl.children];
+    const positions = new Map(visible.map(el => [el, el.getBoundingClientRect()]));
+    entries.forEach((el, person) => updateMainEntryText(el, person));
+    if (currentSort === 'alpha' || currentSort === 'alpha-rev' || currentSort === 'len' || currentSort === 'len-asc') {
+      applySort(currentSort);
+      return;
+    }
+    if (visible.length) animateOpenLayout(listEl, visible, positions);
+  }
+
   applySort('random');
+  mountLanguageButton(document.getElementById('language-bar'), refreshListLanguage);
 }
 
 const topEl = document.getElementById('top-list');
 if (topEl) {
   const entries = new Map(people.map((p,i) => [p, createEntryTop(p,i,i+1)]));
+  let currentDirection = 'desc';
 
   function renderTop(dir) {
+    currentDirection = dir;
     document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort===dir));
     const sorted = [...people].sort((a,b)=> dir==='desc' ? b.hate-a.hate : a.hate-b.hate);
-    document.getElementById('countline').textContent = sorted.length + ' гнид';
+    document.getElementById('countline').textContent = countLabel(sorted.length);
     const ordered = sorted.map((p,i) => {
       const el = entries.get(p);
       el.querySelector('.top-rank').textContent = String(i + 1).padStart(2,'0');
@@ -421,9 +735,11 @@ if (topEl) {
   }
   const bar = document.getElementById('sort-bar');
   const directionBtn = document.createElement('button');
-  directionBtn.className='sort-btn';
+  directionBtn.className='sort-btn top-direction-btn';
   directionBtn.dataset.sort='desc';
   directionBtn.textContent='↓';
+  directionBtn.title=textLabel('topSort');
+  directionBtn.setAttribute('aria-label', textLabel('topSort'));
   directionBtn.addEventListener('click',()=>{
     const next = directionBtn.dataset.sort === 'desc' ? 'asc' : 'desc';
     directionBtn.dataset.sort = next;
@@ -431,5 +747,22 @@ if (topEl) {
     renderTop(next);
   });
   bar.appendChild(directionBtn);
+
+  function refreshTopLanguage() {
+    document.documentElement.lang = language;
+    document.title = textLabel('topDocumentTitle');
+    document.querySelector('.nav-link-top').textContent = textLabel('backLink');
+    document.querySelector('.site-title').textContent = textLabel('topTitle');
+    document.querySelector('.top-note').textContent = textLabel('topNote');
+    document.getElementById('countline').textContent = countLabel(people.length);
+    directionBtn.title = textLabel('topSort');
+    directionBtn.setAttribute('aria-label', directionBtn.title);
+    const visible = [...topEl.children];
+    const positions = new Map(visible.map(el => [el, el.getBoundingClientRect()]));
+    entries.forEach((el, person) => updateTopEntryText(el, person));
+    if (visible.length) animateOpenLayout(topEl, visible, positions);
+  }
+
   renderTop('desc');
+  mountLanguageButton(document.getElementById('language-bar'), refreshTopLanguage);
 }
