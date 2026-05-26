@@ -11,6 +11,7 @@ header{text-align:center;padding:70px 40px 0;opacity:0;animation:fadeUp 0.9s eas
 .title-block{display:inline-flex;flex-direction:column;align-items:stretch}
 .site-title{font-family:'Dela Gothic One',sans-serif;font-size:clamp(46px,10.4vw,117px);line-height:0.88;letter-spacing:-3px;color:#0a0a0a;display:inline-block;border:0;background:none;cursor:pointer}
 .count-line{font-size:11px;font-weight:200;letter-spacing:5px;color:#999;text-transform:uppercase;margin-top:24px}
+.top-note{max-width:620px;margin:18px auto 0;font-size:9px;font-weight:200;letter-spacing:3px;line-height:2.2;text-transform:uppercase;color:#80514d}
 
 #sort-bar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:24px;padding-bottom:36px}
 .sort-btn,.display-btn{font-family:'Unbounded',sans-serif;font-size:8px;font-weight:200;letter-spacing:2px;text-transform:uppercase;border:1px solid #ccc;background:none;color:#999;padding:5px 8px;cursor:pointer;transition:all 0.2s}
@@ -20,8 +21,13 @@ header{text-align:center;padding:70px 40px 0;opacity:0;animation:fadeUp 0.9s eas
 
 .nav-link{display:inline-block;margin-top:18px;margin-bottom:2px;font-size:11px;font-weight:300;letter-spacing:5px;text-transform:uppercase;color:#0a0a0a;text-decoration:none;transition:all 0.2s;border:1px solid #0a0a0a;padding:8px 12px}
 .nav-link:hover{background:#0a0a0a;color:#eeebe3;box-shadow:0 0 15px rgba(10,10,10,0.3)}
-.nav-link-top{position:relative;z-index:1;display:block;width:100%;margin:0 0 14px;padding:10px 12px;border-color:#ba8580;background:transparent;color:#a56c67}
-.nav-link-top:hover{border-color:#a56c67;background:rgba(165,108,103,0.06);color:#8b5752;box-shadow:0 0 10px rgba(165,108,103,0.14)}
+.nav-link-top{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin:0 0 14px;padding:11px 12px;border:1.5px solid #ad716b;background:rgba(173,113,107,0.045);color:#965853;font-weight:400;letter-spacing:4px}
+.nav-link-top::after{content:'→';font-size:12px;line-height:1;transition:transform .2s ease}
+.nav-link-top:hover{border-color:#965853;background:rgba(173,113,107,0.13);color:#7e4742;box-shadow:0 4px 14px rgba(165,108,103,0.16);transform:translateY(-1px)}
+.nav-link-top:hover::after{transform:translateX(3px)}
+.nav-link-back::after{content:none}
+.nav-link-back::before{content:'←';font-size:12px;line-height:1;transition:transform .2s ease}
+.nav-link-back:hover::before{transform:translateX(-3px)}
 
 main{padding:0 40px 160px;width:100%;max-width:860px;display:flex;flex-direction:column;align-items:center}
 
@@ -60,13 +66,14 @@ main{padding:0 40px 160px;width:100%;max-width:860px;display:flex;flex-direction
 .top-entry{padding:20px 0}
 
 .top-meta{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:6px}
-.top-rank{font-family:'Dela Gothic One',sans-serif;font-size:13px;letter-spacing:4px;flex:0 0 auto}
+.top-rank{font-family:'Dela Gothic One',sans-serif;font-size:13px;letter-spacing:4px;flex:0 0 auto;color:#0a0a0a}
 
 .top-bar-row{display:flex;align-items:center;justify-content:center;gap:12px;padding-top:14px;padding-bottom:6px}
 .hate-bar{display:flex;align-items:center;gap:1px}
-.hb{font-family:Arial,sans-serif;font-size:26px;font-weight:900;line-height:.8;color:#ddd8d0;display:block}
-.hate-num{font-family:'Dela Gothic One',sans-serif;font-size:28px;letter-spacing:-1px;line-height:1}
-.hate-denom{font-size:10px;font-weight:200;letter-spacing:2px;color:#bbb;font-family:'Unbounded',sans-serif}
+.hb{font-family:Arial,sans-serif;font-size:26px;font-weight:900;line-height:.8;color:#0a0a0a;opacity:.12;display:block}
+.hb.on{color:var(--score-color);opacity:var(--score-opacity)}
+.hate-num{font-family:'Dela Gothic One',sans-serif;font-size:28px;letter-spacing:-1px;line-height:1;color:#0a0a0a}
+.hate-denom{font-size:10px;font-weight:200;letter-spacing:2px;color:#6e6962;font-family:'Unbounded',sans-serif}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes markEmerge{from{opacity:0;transform:translateX(22px) scale(.84)}to{opacity:1;transform:translateX(0) scale(1)}}
@@ -84,4 +91,12 @@ main{padding:0 40px 160px;width:100%;max-width:860px;display:flex;flex-direction
   .entry.entry-in{animation-duration:0.01ms;animation-delay:0ms!important}
   .entry-level-mark.entering{animation:none}
   .entry-level-mark,.entry-detail{transition:none}
+}
+
+@media (monochrome), (forced-colors:active), (prefers-contrast:more){
+  .top-note{color:#0a0a0a}
+  .nav-link-top{border-color:#0a0a0a;color:#0a0a0a;background:transparent}
+  .hb{color:#0a0a0a;opacity:.12}
+  .hb.on{color:#0a0a0a;opacity:var(--score-opacity)}
+  .top-rank,.hate-num{color:#0a0a0a!important}
 }

@@ -8,13 +8,6 @@ function plainText(text) {
   }).join('');
 }
 
-function hateColor(hate) {
-  if (hate >= 90) return '#b71c1c';
-  if (hate >= 70) return '#8b1a1a';
-  if (hate >= 45) return '#555';
-  return '#999';
-}
-
 function levelColor(level) {
   return `rgb(${Math.round((level / 5) * 255)}, 0, 0)`;
 }
@@ -25,6 +18,10 @@ function scoreSegmentColor(value) {
   const green = Math.round(120 - 92 * strength);
   const blue = Math.round(114 - 86 * strength);
   return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function scoreSegmentOpacity(value) {
+  return (0.5 + value / 200).toFixed(2);
 }
 
 function renderStars(level) {
@@ -41,12 +38,11 @@ function renderStars(level) {
 
 function renderBar(hate) {
   const filled = Math.round(hate / 5);
-  const col = hateColor(hate);
-  return `<div class="hate-bar">${
+  return `<div class="hate-bar" aria-hidden="true">${
     Array.from({length:20}, (_,i) =>
-      `<span class="hb${i < filled ? ' on' : ''}" style="${i < filled ? `color:${scoreSegmentColor((i + 1) * 5)}` : ''}">/</span>`
+      `<span class="hb${i < filled ? ' on' : ''}" style="${i < filled ? `--score-color:${scoreSegmentColor((i + 1) * 5)};--score-opacity:${scoreSegmentOpacity((i + 1) * 5)}` : ''}">/</span>`
     ).join('')
-  }</div><div class="hate-num" style="color:${col}">${hate}<span class="hate-denom">/100</span></div>`;
+  }</div><div class="hate-num" aria-label="Насколько меня бесит: ${hate} из 100">${hate}<span class="hate-denom">/100</span></div>`;
 }
 
 function animateEntryIn(el, i) {
@@ -276,11 +272,9 @@ function createEntryTop(p, i, rank) {
   el.className = 'entry top-entry';
   el.dataset.hate = p.hate;
   animateEntryIn(el, i);
-  const col = hateColor(p.hate);
-
   el.innerHTML = `
     <div class="top-meta">
-      <span class="top-rank" style="color:${col}">${String(rank).padStart(2,'0')}</span>
+      <span class="top-rank">${String(rank).padStart(2,'0')}</span>
       <div class="entry-name">${plainText(p.name)}</div>
     </div>
     <div class="top-bar-row">${renderBar(p.hate)}</div>
@@ -298,7 +292,7 @@ function createEntryTop(p, i, rank) {
 
 const listEl = document.getElementById('list');
 if (listEl) {
-  document.getElementById('countline').textContent = people.length + ' гниды';
+  document.getElementById('countline').textContent = people.length + ' гнид';
 
   function shuffle(a) {
     const r = [...a];
