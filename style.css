@@ -7,82 +7,81 @@ body::before{
   opacity:0.1;pointer-events:none;z-index:9999
 }
 
-header{
-  text-align:center;
-  padding:80px 40px 20px;
-  opacity:0;animation:fadeUp 0.9s ease forwards 0.1s;
-  width:100%
-}
+header{text-align:center;padding:70px 40px 0;opacity:0;animation:fadeUp 0.9s ease forwards 0.1s;width:100%}
+.title-block{display:inline-flex;flex-direction:column;align-items:stretch}
+.site-title{font-family:'Dela Gothic One',sans-serif;font-size:clamp(46px,10.4vw,117px);line-height:0.88;letter-spacing:-3px;color:#0a0a0a;display:inline-block;border:0;background:none;cursor:pointer}
+.count-line{font-size:11px;font-weight:200;letter-spacing:5px;color:#999;text-transform:uppercase;margin-top:24px}
 
-.site-title{
-  font-family:'Dela Gothic One',sans-serif;
-  font-size:clamp(46px,10.4vw,117px);
-  line-height:0.88;letter-spacing:-3px;color:#0a0a0a;
-  display:inline-block
-}
+#sort-bar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:24px;padding-bottom:36px}
+.sort-btn,.display-btn{font-family:'Unbounded',sans-serif;font-size:8px;font-weight:200;letter-spacing:2px;text-transform:uppercase;border:1px solid #ccc;background:none;color:#999;padding:5px 8px;cursor:pointer;transition:all 0.2s}
+.sort-btn:hover,.display-btn:hover{border-color:#0a0a0a;color:#0a0a0a}
+.sort-btn.active{border-color:#0a0a0a;background:#0a0a0a;color:#eeebe3}
+.display-btn.active{border-color:#ba8580;background:transparent;color:#b71c1c}
 
-.count-line{
-  font-size:11px;font-weight:200;letter-spacing:5px;
-  color:#999;text-transform:uppercase;
-  margin-top:20px
-}
+.nav-link{display:inline-block;margin-top:18px;margin-bottom:2px;font-size:11px;font-weight:300;letter-spacing:5px;text-transform:uppercase;color:#0a0a0a;text-decoration:none;transition:all 0.2s;border:1px solid #0a0a0a;padding:8px 12px}
+.nav-link:hover{background:#0a0a0a;color:#eeebe3;box-shadow:0 0 15px rgba(10,10,10,0.3)}
+.nav-link-top{position:relative;z-index:1;display:block;width:100%;margin:0 0 14px;padding:10px 12px;border-color:#ba8580;background:transparent;color:#a56c67}
+.nav-link-top:hover{border-color:#a56c67;background:rgba(165,108,103,0.06);color:#8b5752;box-shadow:0 0 10px rgba(165,108,103,0.14)}
 
-main{
-  padding:60px 40px 160px;
-  width:100%;max-width:900px;
-  display:flex;flex-direction:column;align-items:center;
-  gap:0
-}
+main{padding:0 40px 160px;width:100%;max-width:860px;display:flex;flex-direction:column;align-items:center}
 
-.entry{
-  width:100%;text-align:center;
-  padding:18px 0;
-  opacity:0;transform:translateY(16px)
-}
-
-.entry.visible{animation:fadeUp 0.5s ease forwards}
+.entry{position:relative;width:100%;text-align:center;padding:14px 0;opacity:1}
+.entry.entry-in{opacity:0;transform:translateY(12px);animation:fadeUp 0.3s cubic-bezier(.2,.72,.28,1) forwards}
 
 .entry-name{
   font-family:'Dela Gothic One',sans-serif;
-  font-size:clamp(20px,3.9vw,47px);
-  line-height:1;color:#0a0a0a;
-  cursor:pointer;
-  display:inline-block;
-  transition:opacity 0.2s;
-  position:relative
+  font-size:clamp(22px,4.2vw,52px);
+  line-height:1;color:#0a0a0a;cursor:pointer;display:inline-flex;align-items:center;
+  transition:opacity 0.2s;letter-spacing:-0.5px
 }
-
 .entry-name span{display:inline-block}
+.entry-space{width:.25em}
+.wobbly-letter{transform-origin:center;will-change:transform}
+.entry-level-mark{order:-1;flex:0 0 auto;margin-right:14px;font-size:clamp(16px,2.1vw,23px);line-height:1;letter-spacing:0;transform-origin:center;transition:opacity 0.22s ease,transform 0.28s cubic-bezier(.2,.72,.18,1)}
+.entry-level-mark.entering{animation:markEmerge 0.38s cubic-bezier(.18,.76,.18,1) both}
+.entry:hover .entry-name{opacity:0.38}
+.entry.open:hover .entry-name{opacity:1}
 
-.entry:hover .entry-name{opacity:0.45}
+.entry-detail{max-height:0;overflow:hidden;opacity:0;transform:translateY(-5px);transform-origin:top center;transition:max-height 0.36s cubic-bezier(.2,.72,.18,1),opacity 0.24s ease,transform 0.32s cubic-bezier(.2,.72,.18,1)}
+.entry.open .entry-detail{max-height:300px;opacity:1;transform:translateY(0)}
+#list.measure-details .entry-detail{transition:none}
 
-.entry-detail{
-  max-height:0;overflow:hidden;
-  transition:max-height 0.5s ease, opacity 0.4s ease;
-  opacity:0
-}
+.entry-stars{display:flex;justify-content:center;gap:6px;padding-top:14px;padding-bottom:6px}
+.star{position:relative;display:inline-block;font-size:20px;color:#ccc;transition:color 0.2s}
+.star.on{color:#0a0a0a}
+.star.half::before{content:'★';position:absolute;inset:0;width:50%;overflow:hidden;color:var(--star-color)}
+.entry.level-marks-visible.open .entry-level-mark{opacity:0;transform:translateY(8px) scale(.94)}
+.entry.stars-flight .entry-stars .star{opacity:0}
+.entry.stars-flight .entry-reason{animation:detailReveal 0.28s cubic-bezier(.2,.72,.18,1) 0.13s both}
+.star-traveler{position:fixed;z-index:10001;display:block;line-height:1;pointer-events:none;transform-origin:center;will-change:transform,opacity}
 
-.entry.open .entry-detail{max-height:200px;opacity:1}
+.entry-reason{font-size:10px;font-weight:200;letter-spacing:4px;text-transform:uppercase;color:#0a0a0a;line-height:2.2;padding:8px 0 14px;display:inline-block;max-width:620px}
 
-.entry-reason{
-  font-size:10px;font-weight:200;
-  letter-spacing:4px;text-transform:uppercase;
-  color:#0a0a0a;line-height:2.2;
-  padding:18px 0 8px;
-  display:inline-block;
-  max-width:600px
-}
+.top-entry{padding:20px 0}
 
-.entry-level{
-  display:flex;gap:6px;justify-content:center;margin-top:8px;padding-bottom:8px
-}
+.top-meta{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:6px}
+.top-rank{font-family:'Dela Gothic One',sans-serif;font-size:13px;letter-spacing:4px;flex:0 0 auto}
 
-.v-dot{width:24px;height:2px;background:#ccc}
-.v-dot.on{background:#c0392b}
+.top-bar-row{display:flex;align-items:center;justify-content:center;gap:12px;padding-top:14px;padding-bottom:6px}
+.hate-bar{display:flex;align-items:center;gap:1px}
+.hb{font-family:Arial,sans-serif;font-size:26px;font-weight:900;line-height:.8;color:#ddd8d0;display:block}
+.hate-num{font-family:'Dela Gothic One',sans-serif;font-size:28px;letter-spacing:-1px;line-height:1}
+.hate-denom{font-size:10px;font-weight:200;letter-spacing:2px;color:#bbb;font-family:'Unbounded',sans-serif}
 
-@keyframes fadeUp{
-  from{opacity:0;transform:translateY(16px)}
-  to{opacity:1;transform:translateY(0)}
-}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes markEmerge{from{opacity:0;transform:translateX(22px) scale(.84)}to{opacity:1;transform:translateX(0) scale(1)}}
+@keyframes detailReveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 ::-webkit-scrollbar{width:2px}
 ::-webkit-scrollbar-thumb{background:#ccc}
+
+@media(max-width:600px){
+  header,main{padding-left:20px;padding-right:20px}
+  .sort-btn,.display-btn{font-size:8px;padding:6px 10px}
+  .hb{font-size:19px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .entry.entry-in{animation-duration:0.01ms;animation-delay:0ms!important}
+  .entry-level-mark.entering{animation:none}
+  .entry-level-mark,.entry-detail{transition:none}
+}
