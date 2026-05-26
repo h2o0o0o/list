@@ -1,0 +1,88 @@
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:#eeebe3;color:#0a0a0a;font-family:'Unbounded',sans-serif;cursor:crosshair}
+body{min-height:100vh;overflow-x:hidden;position:relative;display:flex;flex-direction:column;align-items:center}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity:0.1;pointer-events:none;z-index:9999
+}
+
+header{
+  text-align:center;
+  padding:80px 40px 20px;
+  opacity:0;animation:fadeUp 0.9s ease forwards 0.1s;
+  width:100%
+}
+
+.site-title{
+  font-family:'Dela Gothic One',sans-serif;
+  font-size:clamp(46px,10.4vw,117px);
+  line-height:0.88;letter-spacing:-3px;color:#0a0a0a;
+  display:inline-block
+}
+
+.count-line{
+  font-size:11px;font-weight:200;letter-spacing:5px;
+  color:#999;text-transform:uppercase;
+  margin-top:20px
+}
+
+main{
+  padding:60px 40px 160px;
+  width:100%;max-width:900px;
+  display:flex;flex-direction:column;align-items:center;
+  gap:0
+}
+
+.entry{
+  width:100%;text-align:center;
+  padding:18px 0;
+  opacity:0;transform:translateY(16px)
+}
+
+.entry.visible{animation:fadeUp 0.5s ease forwards}
+
+.entry-name{
+  font-family:'Dela Gothic One',sans-serif;
+  font-size:clamp(20px,3.9vw,47px);
+  line-height:1;color:#0a0a0a;
+  cursor:pointer;
+  display:inline-block;
+  transition:opacity 0.2s;
+  position:relative
+}
+
+.entry-name span{display:inline-block}
+
+.entry:hover .entry-name{opacity:0.45}
+
+.entry-detail{
+  max-height:0;overflow:hidden;
+  transition:max-height 0.5s ease, opacity 0.4s ease;
+  opacity:0
+}
+
+.entry.open .entry-detail{max-height:200px;opacity:1}
+
+.entry-reason{
+  font-size:10px;font-weight:200;
+  letter-spacing:4px;text-transform:uppercase;
+  color:#0a0a0a;line-height:2.2;
+  padding:18px 0 8px;
+  display:inline-block;
+  max-width:600px
+}
+
+.entry-level{
+  display:flex;gap:6px;justify-content:center;margin-top:8px;padding-bottom:8px
+}
+
+.v-dot{width:24px;height:2px;background:#ccc}
+.v-dot.on{background:#c0392b}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+::-webkit-scrollbar{width:2px}
+::-webkit-scrollbar-thumb{background:#ccc}
