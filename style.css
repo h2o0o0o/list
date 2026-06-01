@@ -23,13 +23,15 @@ header{text-align:center;padding:70px 40px 0;opacity:0;animation:fadeUp 0.9s eas
 .display-btn.active{border-color:var(--accent-border);background:transparent;color:var(--accent)}
 .theme-btn{margin-left:5px;min-width:35px;font-size:12px;line-height:1}
 .theme-btn:hover{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
-.language-bar{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 56px;opacity:0;animation:fadeUp .6s ease forwards .45s}
-.language-bar::after{content:'VERY ROUGH TRANSLATION';font-size:7px;letter-spacing:1.8px;color:var(--muted);opacity:0;transform:translateX(-7px);transition:opacity .22s ease,transform .22s ease;pointer-events:none}
-.language-bar:hover::after,.language-bar:focus-within::after{opacity:.48;transform:translateX(0)}
-.language-btn{min-width:0;padding:3px 5px;font-size:7px;letter-spacing:1.6px;border-color:transparent;background:transparent;box-shadow:none;opacity:.38}
-.language-btn:hover,.language-btn:focus-visible{border-color:transparent;color:var(--muted);opacity:.78}
-.language-btn.active{border-color:transparent;color:var(--accent)}
-.language-btn:disabled{opacity:.55;cursor:wait}
+.language-bar{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;width:max-content;margin:0 auto 14px;opacity:0;animation:fadeUp .6s ease forwards .35s}
+.language-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:1px;min-width:38px;padding:6px 7px;font-size:8px;letter-spacing:1.4px;border-color:var(--accent-border);background:var(--accent-bg);color:var(--accent);box-shadow:0 5px 16px rgba(0,0,0,.08);opacity:.94}
+.language-btn:hover,.language-btn:focus-visible{border-color:var(--accent);background:var(--accent-hover-bg);color:var(--accent);box-shadow:0 7px 18px rgba(0,0,0,.1);opacity:1}
+.language-btn.active{border-color:var(--accent);background:var(--accent-hover-bg);color:var(--accent)}
+.language-btn::after{content:attr(data-tooltip);position:absolute;top:calc(100% + 7px);left:50%;min-width:max-content;padding:5px 7px;border:1px solid var(--accent-border);background:var(--bg);color:var(--accent);font-size:7px;letter-spacing:1.1px;line-height:1;text-transform:uppercase;box-shadow:0 7px 18px rgba(0,0,0,.1);opacity:0;transform:translate(-50%,-4px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+.language-btn:hover::after,.language-btn:focus-visible::after{opacity:.96;transform:translate(-50%,0)}
+.language-letter{display:inline-block;will-change:transform,opacity}
+.language-letter.leaving{animation:languageLetterOut .38s cubic-bezier(.5,-.08,.68,.2) forwards;animation-delay:var(--delay)}
+.language-letter.entering{animation:languageLetterIn .42s cubic-bezier(.16,.86,.22,1) both;animation-delay:var(--delay)}
 
 .nav-link{display:inline-block;margin-top:18px;margin-bottom:2px;font-size:11px;font-weight:300;letter-spacing:5px;text-transform:uppercase;color:var(--text);text-decoration:none;transition:all 0.2s;border:1px solid var(--text);padding:8px 12px}
 .nav-link:hover{background:var(--active-bg);color:var(--active-text);box-shadow:0 0 15px rgba(10,10,10,0.3)}
@@ -42,6 +44,7 @@ header{text-align:center;padding:70px 40px 0;opacity:0;animation:fadeUp 0.9s eas
 .nav-link-back:hover::before{transform:translateX(-3px)}
 
 main{padding:0 40px 44px;width:100%;max-width:860px;display:flex;flex-direction:column;align-items:center}
+.update-note{margin:2px 20px 42px;font-size:8px;font-weight:200;letter-spacing:2.8px;text-transform:uppercase;color:var(--muted);transition:color .38s ease}
 
 .entry{position:relative;width:100%;text-align:center;padding:14px 0;opacity:1}
 .entry.entry-in{opacity:0;transform:translateY(12px);animation:fadeUp 0.3s cubic-bezier(.2,.72,.28,1) forwards}
@@ -55,6 +58,9 @@ main{padding:0 40px 44px;width:100%;max-width:860px;display:flex;flex-direction:
 .entry-name span{display:inline-block}
 .entry-space{width:.25em}
 .wobbly-letter{transform-origin:center;will-change:transform}
+.text-switching{will-change:opacity,transform;pointer-events:none}
+.text-switch-out{animation:textSwitchOut .15s ease forwards}
+.text-switch-in{animation:textSwitchIn .28s cubic-bezier(.16,.86,.22,1) both}
 .entry-level-mark{order:-1;flex:0 0 auto;margin-right:14px;font-size:clamp(16px,2.1vw,23px);line-height:1;letter-spacing:0;transform-origin:center;transition:opacity 0.22s ease,transform 0.28s cubic-bezier(.2,.72,.18,1)}
 .entry-level-mark.entering{animation:markEmerge 0.38s cubic-bezier(.18,.76,.18,1) both}
 .entry:hover .entry-name{opacity:0.38}
@@ -90,11 +96,17 @@ main{padding:0 40px 44px;width:100%;max-width:860px;display:flex;flex-direction:
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes markEmerge{from{opacity:0;transform:translateX(22px) scale(.84)}to{opacity:1;transform:translateX(0) scale(1)}}
 @keyframes detailReveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes languageLetterOut{to{opacity:0;transform:translate(var(--x),var(--y)) rotate(var(--r)) scale(.35)}}
+@keyframes languageLetterIn{from{opacity:0;transform:translate(var(--from-x),var(--from-y)) rotate(var(--from-r)) scale(.45)}to{opacity:1;transform:translate(0,0) rotate(0) scale(1)}}
+@keyframes textSwitchOut{to{opacity:0;transform:translateY(8px) scale(.985)}}
+@keyframes textSwitchIn{from{opacity:0;transform:translateY(-8px) scale(1.012)}to{opacity:1;transform:translateY(0) scale(1)}}
 ::-webkit-scrollbar{width:2px}
 ::-webkit-scrollbar-thumb{background:var(--scroll)}
 
 @media(max-width:600px){
   header,main{padding-left:20px;padding-right:20px}
+  .language-bar{margin-bottom:12px}
+  .language-btn{min-width:35px;padding:5px 6px;font-size:7px}
   .sort-btn,.display-btn,.theme-btn{font-size:8px;padding:6px 10px}
   .theme-btn{font-size:12px}
   .hb{font-size:19px}
@@ -103,6 +115,8 @@ main{padding:0 40px 44px;width:100%;max-width:860px;display:flex;flex-direction:
 @media(prefers-reduced-motion:reduce){
   .entry.entry-in{animation-duration:0.01ms;animation-delay:0ms!important}
   .entry-level-mark.entering{animation:none}
+  .language-letter.leaving,.language-letter.entering{animation:none}
+  .text-switch-out,.text-switch-in{animation:none}
   .entry-level-mark,.entry-detail{transition:none}
 }
 

@@ -35,9 +35,8 @@ const languageLabels = {
   lightTheme:{ru:'Включить светлую тему',en:'Switch to light theme'},
   darkTheme:{ru:'Включить тёмную тему',en:'Switch to dark theme'},
   topSort:{ru:'Изменить порядок топа',en:'Reverse top order'},
-  languageToEnglish:{ru:'Перевести на английский',en:'Translate to English'},
-  languageToRussian:{ru:'Вернуть русский язык',en:'Switch back to Russian'},
-  translationError:{ru:'Перевод временно недоступен',en:'Translation is temporarily unavailable'},
+  languageToEnglish:{ru:'Switch to ENG',en:'Switch to ENG'},
+  languageToRussian:{ru:'Switch to RU',en:'Switch to RU'},
   irritation:{ru:'Насколько меня бесит',en:'How much this person annoys me'}
 };
 
@@ -49,18 +48,18 @@ function readLanguage() {
   }
 }
 
-function readTranslationCache() {
-  try {
-    return JSON.parse(localStorage.getItem('translation-cache-ru-en') || '{}');
-  } catch {
-    return {};
-  }
-}
-
 let language = readLanguage();
-let englishReady = false;
-let translationRequest;
-const translationCache = readTranslationCache();
+let animateLanguageSwap = false;
+const englishTexts = new Map();
+
+if (typeof peopleEng !== 'undefined' && Array.isArray(peopleEng)) {
+  people.forEach((person, index) => {
+    const translated = peopleEng[index];
+    if (!translated) return;
+    englishTexts.set(person.name, translated.name || person.name);
+    englishTexts.set(person.reason, translated.reason || person.reason);
+  });
+}
 
 function textLabel(key) {
   return languageLabels[key][language];
@@ -76,82 +75,13 @@ function saveLanguage() {
   } catch {}
 }
 
-function saveTranslationCache() {
-  try {
-    localStorage.setItem('translation-cache-ru-en', JSON.stringify(translationCache));
-  } catch {}
-}
-
 function translatedText(text) {
-  if (language !== 'en' || !englishReady) return text;
-  return translationCache[text] || text;
+  if (language !== 'en') return text;
+  return englishTexts.get(text) || text;
 }
 
 function escapeHtml(text) {
   return String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
-}
-
-function splitTranslationText(text) {
-  const parts = text.split(/\s+/);
-  const chunks = [];
-  let current = '';
-  parts.forEach(part => {
-    const candidate = current ? `${current} ${part}` : part;
-    if (new TextEncoder().encode(candidate).length <= 450) {
-      current = candidate;
-      return;
-    }
-    if (current) chunks.push(current);
-    current = part;
-  });
-  if (current) chunks.push(current);
-  return chunks;
-}
-
-function decodeTranslation(text) {
-  const area = document.createElement('textarea');
-  area.innerHTML = text;
-  return area.value;
-}
-
-async function fetchTranslation(text) {
-  const chunks = splitTranslationText(text);
-  const translated = [];
-  for (const chunk of chunks) {
-    const query = new URLSearchParams({q:chunk,langpair:'ru|en',mt:'1'});
-    const response = await fetch(`https://api.mymemory.translated.net/get?${query}`);
-    if (!response.ok) throw new Error('translation');
-    const data = await response.json();
-    if (!data.responseData || typeof data.responseData.translatedText !== 'string') throw new Error('translation');
-    translated.push(decodeTranslation(data.responseData.translatedText));
-  }
-  return translated.join(' ');
-}
-
-async function ensureEnglishTranslations() {
-  if (translationRequest) return translationRequest;
-  const sources = [...new Set(people.flatMap(person => [person.name, person.reason]))];
-  const pending = sources.filter(text => !translationCache[text]);
-  translationRequest = (async () => {
-    let cursor = 0;
-    let completed = sources.length - pending.length;
-    async function worker() {
-      while (cursor < pending.length) {
-        const text = pending[cursor++];
-        try {
-          translationCache[text] = await fetchTranslation(text);
-          completed++;
-          saveTranslationCache();
-        } catch {}
-      }
-    }
-    await Promise.all(Array.from({length:Math.min(3, pending.length)}, () => worker()));
-    if (completed !== sources.length) throw new Error('translation');
-    englishReady = true;
-  })().finally(() => {
-    translationRequest = null;
-  });
-  return translationRequest;
 }
 
 function plainText(text) {
@@ -162,6 +92,67 @@ function plainText(text) {
     const ty = (Math.random() - 0.5) * 8;
     return `<span class="wobbly-letter" style="transform:rotate(${rot}deg) translate(${tx}px,${ty}px)">${escapeHtml(ch)}</span>`;
   }).join('');
+}
+
+function reducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function clearTextSwitch(el) {
+  el._textSwitchTimers?.forEach(timer => window.clearTimeout(timer));
+  el._textSwitchTimers = null;
+  el.classList.remove('text-switching', 'text-switch-out', 'text-switch-in');
+  el.style.minHeight = '';
+}
+
+function animateTextSwitch(el, updateText) {
+  clearTextSwitch(el);
+  el.classList.add('text-switching', 'text-switch-out');
+  el.style.minHeight = `${el.offsetHeight}px`;
+
+  const enterTimer = window.setTimeout(() => {
+    updateText();
+    el.classList.remove('text-switch-out');
+    el.classList.add('text-switch-in');
+  }, 150);
+
+  const finishTimer = window.setTimeout(() => {
+    clearTextSwitch(el);
+  }, 430);
+
+  el._textSwitchTimers = [enterTimer, finishTimer];
+}
+
+function setNameText(el, text, mark = null, animated = false) {
+  const currentText = el.dataset.text || el.textContent;
+  clearTextSwitch(el);
+  if (!animated || reducedMotion() || currentText === text) {
+    el.innerHTML = plainText(text);
+    if (mark) el.appendChild(mark);
+    el.dataset.text = text;
+    return;
+  }
+
+  el.dataset.text = text;
+  animateTextSwitch(el, () => {
+    el.innerHTML = plainText(text);
+    if (mark) el.appendChild(mark);
+  });
+}
+
+function setReasonText(el, text, animated = false) {
+  const currentText = el.dataset.text || el.textContent;
+  clearTextSwitch(el);
+  if (!animated || reducedMotion() || currentText === text) {
+    el.textContent = text;
+    el.dataset.text = text;
+    return;
+  }
+
+  el.dataset.text = text;
+  animateTextSwitch(el, () => {
+    el.textContent = text;
+  });
 }
 
 function levelColor(level) {
@@ -433,6 +424,8 @@ function createEntryMain(p, i, showLevelMark) {
       <div class="entry-stars">${renderStars(p.level)}</div>
       <div class="entry-reason">${escapeHtml(translatedText(p.reason))}</div>
     </div>`;
+  el.querySelector('.entry-name').dataset.text = translatedText(p.name);
+  el.querySelector('.entry-reason').dataset.text = translatedText(p.reason);
 
   el.querySelector('.entry-name').addEventListener('click', () => {
     const was = el.classList.contains('open');
@@ -484,6 +477,8 @@ function createEntryTop(p, i, rank) {
     <div class="entry-detail">
       <div class="entry-reason">${escapeHtml(translatedText(p.reason))}</div>
     </div>`;
+  el.querySelector('.entry-name').dataset.text = translatedText(p.name);
+  el.querySelector('.entry-reason').dataset.text = translatedText(p.reason);
 
   el.querySelector('.entry-name').addEventListener('click', () => {
     const was = el.classList.contains('open');
@@ -497,68 +492,91 @@ function updateMainEntryText(el, person) {
   clearStarTransfer(el);
   const name = el.querySelector('.entry-name');
   const mark = name.querySelector('.entry-level-mark');
-  name.innerHTML = plainText(translatedText(person.name));
-  if (mark) name.appendChild(mark);
-  el.querySelector('.entry-reason').textContent = translatedText(person.reason);
+  if (mark) mark.remove();
+  setNameText(name, translatedText(person.name), mark, animateLanguageSwap);
+  setReasonText(el.querySelector('.entry-reason'), translatedText(person.reason), animateLanguageSwap);
 }
 
 function updateTopEntryText(el, person) {
-  el.querySelector('.entry-name').innerHTML = plainText(translatedText(person.name));
-  el.querySelector('.entry-reason').textContent = translatedText(person.reason);
+  setNameText(el.querySelector('.entry-name'), translatedText(person.name), null, animateLanguageSwap);
+  setReasonText(el.querySelector('.entry-reason'), translatedText(person.reason), animateLanguageSwap);
   el.querySelector('.hate-num').setAttribute('aria-label', `${textLabel('irritation')}: ${person.hate} / 100`);
 }
 
 function mountLanguageButton(bar, refresh) {
   const button = document.createElement('button');
   button.className = 'language-btn';
+  let languageTextTimer = null;
 
-  function sync(busy = false) {
-    button.textContent = busy ? '...' : language === 'en' ? 'RU' : 'ENG';
+  function makeLanguageLetters(text, className = '') {
+    return text.split('').map((letter, i) => {
+      const x = Math.round((Math.random() - 0.5) * 34);
+      const y = Math.round(-12 - Math.random() * 18);
+      const r = Math.round((Math.random() - 0.5) * 70);
+      const span = document.createElement('span');
+      span.className = `language-letter${className ? ` ${className}` : ''}`;
+      span.textContent = letter;
+      span.style.setProperty('--i', i);
+      span.style.setProperty('--delay', `${i * 32}ms`);
+      span.style.setProperty('--x', `${x}px`);
+      span.style.setProperty('--y', `${y}px`);
+      span.style.setProperty('--r', `${r}deg`);
+      span.style.setProperty('--from-x', `${-x}px`);
+      span.style.setProperty('--from-y', `${-y}px`);
+      span.style.setProperty('--from-r', `${-r}deg`);
+      return span;
+    });
+  }
+
+  function setButtonText(nextText, animated = false) {
+    const previousText = button.dataset.label || '';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (languageTextTimer) {
+      window.clearTimeout(languageTextTimer);
+      languageTextTimer = null;
+    }
+    if (!animated || reduceMotion || !previousText || previousText === nextText) {
+      button.replaceChildren(...makeLanguageLetters(nextText));
+      button.dataset.label = nextText;
+      return;
+    }
+
+    button.querySelectorAll('.language-letter').forEach((letter, i) => {
+      letter.style.setProperty('--i', i);
+      letter.style.setProperty('--delay', `${i * 24}ms`);
+      letter.style.setProperty('--x', `${Math.round((Math.random() - 0.5) * 42)}px`);
+      letter.style.setProperty('--y', `${Math.round(-14 - Math.random() * 22)}px`);
+      letter.style.setProperty('--r', `${Math.round((Math.random() - 0.5) * 100)}deg`);
+      letter.classList.add('leaving');
+    });
+
+    languageTextTimer = window.setTimeout(() => {
+      button.replaceChildren(...makeLanguageLetters(nextText, 'entering'));
+      button.dataset.label = nextText;
+      languageTextTimer = null;
+    }, 190);
+  }
+
+  function sync(animated = false) {
+    setButtonText(language === 'en' ? 'ENG' : 'РУС', animated);
     button.classList.toggle('active', language === 'en');
     button.title = language === 'en' ? textLabel('languageToRussian') : textLabel('languageToEnglish');
+    button.dataset.tooltip = button.title;
     button.setAttribute('aria-label', button.title);
   }
 
-  async function loadEnglish() {
-    button.disabled = true;
-    sync(true);
-    let failed = false;
-    try {
-      await ensureEnglishTranslations();
-      refresh();
-    } catch {
-      failed = true;
-      language = 'ru';
-      saveLanguage();
-      refresh();
-    } finally {
-      button.disabled = false;
-      sync();
-      if (failed) {
-        button.title = textLabel('translationError');
-        button.setAttribute('aria-label', button.title);
-      }
-    }
-  }
-
-  button.addEventListener('click', async () => {
-    if (language === 'en') {
-      language = 'ru';
-      saveLanguage();
-      refresh();
-      sync();
-      return;
-    }
-    language = 'en';
+  button.addEventListener('click', () => {
+    language = language === 'en' ? 'ru' : 'en';
     saveLanguage();
+    animateLanguageSwap = true;
     refresh();
-    await loadEnglish();
+    animateLanguageSwap = false;
+    sync(true);
   });
 
   bar.appendChild(button);
   refresh();
-  sync(language === 'en' && !englishReady);
-  if (language === 'en') loadEnglish();
+  sync();
   return button;
 }
 
