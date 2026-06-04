@@ -20,64 +20,95 @@ function applyTheme(theme, persist = true) {
 
 applyTheme(readTheme(), false);
 
-const languageLabels = {
-  listTitle:{ru:'ГАДЫ',en:'SCUM'},
-  topTitle:{ru:'ТОП',en:'TOP'},
-  listDocumentTitle:{ru:'СПИСОК',en:'LIST'},
-  topDocumentTitle:{ru:'ТОП ГНИД',en:'SCUM TOP'},
-  topLink:{ru:'ТОП',en:'TOP'},
-  backLink:{ru:'СПИСОК',en:'LIST'},
-  topNote:{ru:'Здесь не мера зла, только мера того, как сильно каждый меня бесит',en:'Not a measure of evil, only of how much each person gets on my nerves'},
-  showStars:{ru:'Показать звёздочки рядом с именами',en:'Show stars next to names'},
-  hideStars:{ru:'Скрыть звёздочки рядом с именами',en:'Hide stars next to names'},
-  sortStarsAsc:{ru:'Сортировать по звёздам: от меньшего к большему',en:'Sort by stars: low to high'},
-  sortStarsDesc:{ru:'Сортировать по звёздам: от большего к меньшему',en:'Sort by stars: high to low'},
-  lightTheme:{ru:'Включить светлую тему',en:'Switch to light theme'},
-  darkTheme:{ru:'Включить тёмную тему',en:'Switch to dark theme'},
-  topSort:{ru:'Изменить порядок топа',en:'Reverse top order'},
-  languageToEnglish:{ru:'Switch to ENG',en:'Switch to ENG'},
-  languageToRussian:{ru:'Switch to RU',en:'Switch to RU'},
-  irritation:{ru:'Насколько меня бесит',en:'How much this person annoys me'}
-};
+const LANGUAGE_COOKIE = 'site_language';
+const LANGUAGE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function getCookie(name) {
+  const prefix = `${encodeURIComponent(name)}=`;
+  const value = document.cookie
+    .split(';')
+    .map(cookie => cookie.trim())
+    .find(cookie => cookie.startsWith(prefix))
+    ?.slice(prefix.length) || '';
+  return value ? decodeURIComponent(value) : '';
+}
+
+function setCookie(name, value, maxAge = LANGUAGE_COOKIE_MAX_AGE) {
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; max-age=${maxAge}; path=/; samesite=lax`;
+}
+
+function hasLanguageCookie() {
+  const saved = getCookie(LANGUAGE_COOKIE);
+  return supportedLanguageCodes.has(saved);
+}
+
+function hasSavedLanguage() {
+  if (hasLanguageCookie()) return true;
+  try {
+    const legacy = localStorage.getItem('language');
+    return supportedLanguageCodes.has(legacy);
+  } catch {
+    return false;
+  }
+}
 
 function readLanguage() {
+  const saved = getCookie(LANGUAGE_COOKIE);
+  if (supportedLanguageCodes.has(saved)) return saved;
   try {
-    return localStorage.getItem('language') === 'en' ? 'en' : 'ru';
-  } catch {
-    return 'ru';
-  }
+    const legacy = localStorage.getItem('language');
+    if (supportedLanguageCodes.has(legacy)) {
+      setCookie(LANGUAGE_COOKIE, legacy);
+      return legacy;
+    }
+  } catch {}
+  return 'ru';
 }
 
 let language = readLanguage();
 let animateLanguageSwap = false;
-const englishTexts = new Map();
+const translatedTexts = new Map();
 
-if (typeof peopleEng !== 'undefined' && Array.isArray(peopleEng)) {
+Object.entries(peopleTranslations).forEach(([code, translations]) => {
+  const textMap = new Map();
   people.forEach((person, index) => {
-    const translated = peopleEng[index];
+    const translated = translations[index];
     if (!translated) return;
-    englishTexts.set(person.name, translated.name || person.name);
-    englishTexts.set(person.reason, translated.reason || person.reason);
+    textMap.set(person.name, translated.name || person.name);
+    textMap.set(person.reason, translated.reason || person.reason);
   });
-}
+  translatedTexts.set(code, textMap);
+});
 
 function textLabel(key) {
-  return languageLabels[key][language];
+  const labels = languageLabels[key];
+  return labels?.[language] || labels?.en || labels?.ru || key;
 }
 
 function countLabel(count) {
-  return language === 'en' ? `${count} ENTRIES` : `${count} гнид`;
+  return `${count} ${textLabel('entryCount')}`;
 }
 
 function saveLanguage() {
+  setCookie(LANGUAGE_COOKIE, language);
   try {
     localStorage.setItem('language', language);
   } catch {}
 }
 
 function translatedText(text) {
-  if (language !== 'en') return text;
-  return englishTexts.get(text) || text;
+  if (language === 'ru') return text;
+  return translatedTexts.get(language)?.get(text) || text;
+}
+
+function currentLanguageOption() {
+  return siteLanguages.find(option => option.code === language) || siteLanguages[0];
+}
+
+function applyDocumentLanguage() {
+  const option = currentLanguageOption();
+  document.documentElement.lang = option.locale || option.code;
+  document.documentElement.dir = option.dir || 'ltr';
 }
 
 function escapeHtml(text) {
@@ -504,8 +535,14 @@ function updateTopEntryText(el, person) {
 }
 
 function mountLanguageButton(bar, refresh) {
+  const menu = document.createElement('div');
+  menu.className = 'language-menu';
+
   const button = document.createElement('button');
   button.className = 'language-btn';
+  button.type = 'button';
+  button.setAttribute('aria-haspopup', 'true');
+  button.setAttribute('aria-expanded', 'false');
   let languageTextTimer = null;
 
   function makeLanguageLetters(text, className = '') {
@@ -558,26 +595,121 @@ function mountLanguageButton(bar, refresh) {
   }
 
   function sync(animated = false) {
-    setButtonText(language === 'en' ? 'ENG' : 'РУС', animated);
-    button.classList.toggle('active', language === 'en');
-    button.title = language === 'en' ? textLabel('languageToRussian') : textLabel('languageToEnglish');
+    const option = currentLanguageOption();
+    setButtonText(option.short, animated);
+    button.classList.add('active');
+    button.title = option.label;
     button.dataset.tooltip = button.title;
     button.setAttribute('aria-label', button.title);
+    menu.querySelectorAll('.language-menu-option').forEach(option => {
+      const active = option.dataset.language === language;
+      option.classList.toggle('active', active);
+      option.setAttribute('aria-pressed', String(active));
+    });
   }
 
-  button.addEventListener('click', () => {
-    language = language === 'en' ? 'ru' : 'en';
+  function closeMenu() {
+    bar.classList.remove('menu-open');
+    button.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleMenu() {
+    const open = bar.classList.toggle('menu-open');
+    button.setAttribute('aria-expanded', String(open));
+  }
+
+  function selectLanguage(nextLanguage) {
+    if (language === nextLanguage) {
+      closeMenu();
+      return;
+    }
+
+    language = nextLanguage;
     saveLanguage();
     animateLanguageSwap = true;
     refresh();
     animateLanguageSwap = false;
     sync(true);
+    closeMenu();
+  }
+
+  siteLanguages.forEach(option => {
+    const choice = document.createElement('button');
+    choice.className = 'language-menu-option';
+    choice.type = 'button';
+    choice.dataset.language = option.code;
+    choice.lang = option.locale || option.code;
+    choice.dir = option.dir || 'ltr';
+    choice.textContent = option.label;
+    choice.addEventListener('click', () => selectLanguage(option.code));
+    menu.appendChild(choice);
+  });
+
+  button.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleMenu();
+  });
+
+  menu.addEventListener('click', event => {
+    event.stopPropagation();
+  });
+
+  document.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeMenu();
   });
 
   bar.appendChild(button);
+  bar.appendChild(menu);
   refresh();
   sync();
+  button.syncLanguage = sync;
   return button;
+}
+
+function mountLanguageGate(refresh, languageButton) {
+  if (hasSavedLanguage()) {
+    document.documentElement.classList.remove('language-pending');
+    return;
+  }
+
+  const gate = document.createElement('div');
+  gate.className = 'language-gate';
+  gate.setAttribute('role', 'dialog');
+  gate.setAttribute('aria-modal', 'true');
+  gate.setAttribute('aria-label', 'Language');
+
+  const panel = document.createElement('div');
+  panel.className = 'language-gate-panel';
+
+  const actions = document.createElement('div');
+  actions.className = 'language-gate-actions';
+
+  siteLanguages.forEach(option => {
+    const choice = document.createElement('button');
+    choice.className = 'language-choice';
+    choice.type = 'button';
+    choice.lang = option.locale || option.code;
+    choice.dir = option.dir || 'ltr';
+    choice.textContent = option.label;
+    choice.addEventListener('click', () => {
+      language = option.code;
+      saveLanguage();
+      animateLanguageSwap = true;
+      refresh();
+      animateLanguageSwap = false;
+      languageButton?.syncLanguage?.(true);
+      document.documentElement.classList.remove('language-pending');
+      gate.classList.add('closing');
+      window.setTimeout(() => gate.remove(), reducedMotion() ? 0 : 220);
+    });
+    actions.appendChild(choice);
+  });
+
+  panel.appendChild(actions);
+  gate.appendChild(panel);
+  document.body.appendChild(gate);
+  actions.querySelector('button')?.focus();
 }
 
 const listEl = document.getElementById('list');
@@ -606,8 +738,8 @@ if (listEl) {
     if      (mode==='random')    sorted = shuffle(people);
     else if (mode==='level')     sorted = [...people].sort((a,b)=>a.level-b.level);
     else if (mode==='level-rev') sorted = [...people].sort((a,b)=>b.level-a.level);
-    else if (mode==='alpha')     sorted = [...people].sort((a,b)=>translatedText(a.name).localeCompare(translatedText(b.name),language));
-    else if (mode==='alpha-rev') sorted = [...people].sort((a,b)=>translatedText(b.name).localeCompare(translatedText(a.name),language));
+    else if (mode==='alpha')     sorted = [...people].sort((a,b)=>translatedText(a.name).localeCompare(translatedText(b.name),currentLanguageOption().locale || language));
+    else if (mode==='alpha-rev') sorted = [...people].sort((a,b)=>translatedText(b.name).localeCompare(translatedText(a.name),currentLanguageOption().locale || language));
     else if (mode==='len')       sorted = [...people].sort((a,b)=>translatedText(a.name).length-translatedText(b.name).length);
     else if (mode==='len-asc')   sorted = [...people].sort((a,b)=>translatedText(b.name).length-translatedText(a.name).length);
     const ordered = sorted.map(p => entries.get(p));
@@ -709,7 +841,7 @@ if (listEl) {
   bar.appendChild(btnTheme);
 
   function refreshListLanguage() {
-    document.documentElement.lang = language;
+    applyDocumentLanguage();
     document.title = textLabel('listDocumentTitle');
     document.querySelector('.nav-link-top').textContent = textLabel('topLink');
     document.getElementById('shuffle-title').textContent = textLabel('listTitle');
@@ -730,7 +862,8 @@ if (listEl) {
   }
 
   applySort('random');
-  mountLanguageButton(document.getElementById('language-bar'), refreshListLanguage);
+  const languageButton = mountLanguageButton(document.getElementById('language-bar'), refreshListLanguage);
+  mountLanguageGate(refreshListLanguage, languageButton);
 }
 
 const topEl = document.getElementById('top-list');
@@ -767,7 +900,7 @@ if (topEl) {
   bar.appendChild(directionBtn);
 
   function refreshTopLanguage() {
-    document.documentElement.lang = language;
+    applyDocumentLanguage();
     document.title = textLabel('topDocumentTitle');
     document.querySelector('.nav-link-top').textContent = textLabel('backLink');
     document.querySelector('.site-title').textContent = textLabel('topTitle');
@@ -782,5 +915,6 @@ if (topEl) {
   }
 
   renderTop('desc');
-  mountLanguageButton(document.getElementById('language-bar'), refreshTopLanguage);
+  const languageButton = mountLanguageButton(document.getElementById('language-bar'), refreshTopLanguage);
+  mountLanguageGate(refreshTopLanguage, languageButton);
 }
